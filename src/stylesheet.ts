@@ -34,7 +34,7 @@ export class Stylesheet<R extends string> {
         rules: [
           {
             type: CssTypes.rule,
-            selectors: [`.${this.stylesheetID}`],
+            selectors: ["." + this.stylesheetID],
             declarations: [] as (CssDeclarationAST | CssCommentAST)[],
           },
         ],
@@ -74,7 +74,7 @@ export class Stylesheet<R extends string> {
       replaceSelectors: boolean
     ) => {
       const selectorMapFn = replaceSelectors
-        ? (s: string) => `.${this.stylesheetID} ${s}`
+        ? (s: string) => "." + this.stylesheetID + " " + s
         : (s: string) => s;
 
       for (const rule of localAst.stylesheet.rules) {
@@ -88,7 +88,8 @@ export class Stylesheet<R extends string> {
                 if (scopedName) {
                   declaration.property = scopedName;
                 }
-              } else {
+              } else if (declaration.value.includes("var(")) {
+                // TODO: optimize this
                 const reg = /var\((--[\w-]+)(?:.)*\)/g;
 
                 const getCaptureGroups = (
@@ -141,14 +142,16 @@ export class Stylesheet<R extends string> {
     }
   }
 
-  protected getInstance(name = "") {
+  protected getInstance(name = "", includeStyleElement = true) {
     this.initiate();
 
     const className = name + generateID(8);
-    const containerStyles = document.createElement("style");
+    const containerStyles = includeStyleElement
+      ? document.createElement("style")
+      : null;
 
     const varList = new VariablesListRule(
-      `.${this.stylesheetID}.${className}`,
+      "." + this.stylesheetID + "." + className,
       this.stylesheetID
     );
 
@@ -158,11 +161,11 @@ export class Stylesheet<R extends string> {
       }
     }
 
-    containerStyles.innerHTML = varList.stringify();
+    if (containerStyles) containerStyles.innerHTML = varList.stringify();
 
     return {
-      className: `${this.stylesheetID} ${className}`,
-      stylesElement: containerStyles,
+      className: this.stylesheetID + " " + className,
+      styleElement: containerStyles,
       variableList: varList,
     };
   }

@@ -1,17 +1,19 @@
 import React from "react";
 import type { Stylesheet } from "./stylesheet";
 import type { CssVars, ScopeOf } from "./types";
+import { useStringDictChangeEffect } from "./utils/use-string-dict-change-effect";
 
-type SetVarsArgType<R extends string, E = ""> = [
-  varName: Exclude<CssVars<ScopeOf<R>>, E>,
-  value: string | undefined
-][];
+type SetVarsArgType<R extends string, E = ""> = Iterable<
+  [varName: Exclude<CssVars<ScopeOf<R>>, E>, value: string | undefined]
+>;
 
 export const useStylesheet = <R extends string, V = {}>(
   stylesheet: Stylesheet<R>,
   variables: Partial<Record<CssVars<ScopeOf<R>>, string>> & V = {} as any
 ) => {
-  const [styleInstance] = React.useState(() => stylesheet["getInstance"]());
+  const [styleInstance] = React.useState(() =>
+    stylesheet["getInstance"](undefined, true)
+  );
 
   const [setVars] = React.useState(() => (vars: SetVarsArgType<R>) => {
     let hasChanged = false;
@@ -25,48 +27,26 @@ export const useStylesheet = <R extends string, V = {}>(
     }
 
     if (hasChanged)
-      styleInstance.stylesElement.innerHTML =
+      styleInstance.styleElement!.innerHTML =
         styleInstance.variableList.stringify();
   });
 
-  const prevVariables = React.useRef<Record<string, string>>({});
+  // @ts-expect-error
+  useStringDictChangeEffect(setVars, variables as Record<string, string>);
 
   React.useEffect(() => {
-    setTimeout(() => {
-      const varsToUpdate: SetVarsArgType<R> = [];
-
-      for (const [key, value] of Object.entries(variables)) {
-        if (
-          !(key in prevVariables.current) ||
-          prevVariables.current[key] !== value
-        ) {
-          // @ts-expect-error
-          varsToUpdate.push([key, value]);
-        }
-      }
-
-      for (const key of Object.keys(prevVariables.current)) {
-        if (!(key in variables)) {
-          // @ts-expect-error
-          varsToUpdate.push([key, undefined]);
-        }
-      }
-
-      if (varsToUpdate.length > 0) {
-        prevVariables.current = variables as Record<string, string>;
-        setVars(varsToUpdate);
-      }
-    }, 0);
-  }, [Object.keys(variables).join(","), Object.values(variables).join(",")]);
-
-  React.useEffect(() => {
-    document.head.append(styleInstance.stylesElement);
-    return () => styleInstance.stylesElement.remove();
+    document.head.append(styleInstance.styleElement!);
+    return () => styleInstance.styleElement!.remove();
   });
 
   return {
     className: styleInstance.className,
-    setVars(...vars: SetVarsArgType<R, keyof V>) {
+    setVars(
+      ...vars: [
+        varName: Exclude<CssVars<ScopeOf<R>>, keyof V>,
+        value: string | undefined
+      ][]
+    ) {
       return setVars(vars);
     },
   };
