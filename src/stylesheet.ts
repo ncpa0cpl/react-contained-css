@@ -14,13 +14,13 @@ const createAst = <A extends CssStylesheetAST>(v: A) => v;
 export class Stylesheet<R extends string> {
   readonly stylesheetID = generateID(8);
 
-  private stylesElement: HTMLStyleElement;
+  private stylesElement?: HTMLStyleElement;
   private scopeVariables: VarDeclaration[] = [];
   private isInitiated = false;
+  private parsedCss = "";
 
   constructor(rules: R) {
-    this.stylesElement = document.createElement("style");
-    let mainCss = "";
+    this.stylesElement = document && document.createElement("style");
 
     const ast = parse(rules);
 
@@ -126,17 +126,17 @@ export class Stylesheet<R extends string> {
 
     if (newScopeAst.stylesheet.rules[0]!.declarations.length > 0) {
       replaceVariableNamesInAst(newScopeAst, false);
-      mainCss +=
+      this.parsedCss +=
         stringify(newScopeAst, { compress: false, indent: "  " }) + "\n";
     }
 
-    mainCss += stringify(ast, { compress: false, indent: "  " });
+    this.parsedCss += stringify(ast, { compress: false, indent: "  " });
 
-    this.stylesElement.innerHTML = mainCss;
+    if (this.stylesElement) this.stylesElement.innerHTML = this.parsedCss;
   }
 
   private initiate() {
-    if (!this.isInitiated) {
+    if (!this.isInitiated && this.stylesElement) {
       document.head.append(this.stylesElement);
       this.isInitiated = true;
     }
@@ -146,9 +146,8 @@ export class Stylesheet<R extends string> {
     this.initiate();
 
     const className = name + "-" + generateID(8);
-    const containerStyles = includeStyleElement
-      ? document.createElement("style")
-      : null;
+    const containerStyles =
+      includeStyleElement && document ? document.createElement("style") : null;
 
     const varList = new VariablesListRule(
       "." + this.stylesheetID + "." + className,
@@ -168,6 +167,10 @@ export class Stylesheet<R extends string> {
       styleElement: containerStyles,
       variableList: varList,
     };
+  }
+
+  getParsedCss() {
+    return this.parsedCss;
   }
 }
 
