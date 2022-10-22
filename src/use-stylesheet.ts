@@ -31,8 +31,11 @@ export const useStylesheet = <R extends string, V = {}>(
         styleInstance.variableList.stringify();
   });
 
-  // @ts-expect-error
-  useStringDictChangeEffect(setVars, variables as Record<string, string>);
+  useStringDictChangeEffect(
+    // @ts-expect-error
+    setVars,
+    variables as Record<string, string>
+  );
 
   React.useEffect(() => {
     document.head.append(styleInstance.styleElement!);

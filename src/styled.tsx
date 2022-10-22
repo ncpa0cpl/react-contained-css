@@ -1,30 +1,34 @@
 import React from "react";
 import type { Stylesheet } from "./stylesheet";
 import type { CssVars, ScopeOf } from "./types";
+import { useStringDictChangeEffect } from "./utils/use-string-dict-change-effect";
 
 type SetVarsArgType<R extends string, E = ""> = Iterable<
   [varName: Exclude<CssVars<ScopeOf<R>>, E>, value: string | undefined]
 >;
 
-export type StyledProps<
-  C extends keyof JSX.IntrinsicElements,
-  S extends string
-> = {
+export type StyledAdditionalProps<S extends string> = {
   stylesInBody?: boolean;
   variables?: Partial<Record<CssVars<ScopeOf<S>>, string>>;
   uniqueName?: string;
-} & JSX.IntrinsicElements[C];
+};
+
+export type StyledProps<
+  C extends keyof JSX.IntrinsicElements,
+  S extends string
+> = StyledAdditionalProps<S> & JSX.IntrinsicElements[C];
 
 export const styled = <C extends keyof JSX.IntrinsicElements, S extends string>(
   Element: C,
-  stylesheet: Stylesheet<S>
+  stylesheet: Stylesheet<S>,
+  defaults?: StyledAdditionalProps<S>
 ) =>
   React.memo(
     ({
-      variables,
-      stylesInBody,
+      variables = defaults?.variables,
+      stylesInBody = defaults?.stylesInBody,
+      uniqueName = defaults?.uniqueName,
       className,
-      uniqueName,
       ...elementProps
     }: StyledProps<C, S>) => {
       const [styles, setStyles] = React.useState<string>("");
@@ -51,8 +55,8 @@ export const styled = <C extends keyof JSX.IntrinsicElements, S extends string>(
         }
       });
 
-      // @ts-expect-error
       useStringDictChangeEffect(
+        // @ts-expect-error
         setVars,
         (variables as Record<string, string> | undefined) ?? {}
       );

@@ -145,7 +145,7 @@ export class Stylesheet<R extends string> {
   protected getInstance(name = "", includeStyleElement = true) {
     this.initiate();
 
-    const className = name + generateID(8);
+    const className = name + "-" + generateID(8);
     const containerStyles = includeStyleElement
       ? document.createElement("style")
       : null;
