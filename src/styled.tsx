@@ -69,7 +69,7 @@ export const styled = <C extends keyof JSX.IntrinsicElements, S extends string>(
           setStyles(styleInstance.variableList.stringify());
           return () => {};
         }
-      });
+      }, []);
 
       const combinedClassName = React.useMemo(
         () =>

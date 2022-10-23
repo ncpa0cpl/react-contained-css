@@ -83,38 +83,83 @@ export class Stylesheet<R extends string> {
 
           for (const declaration of rule.declarations) {
             if (declaration.type === CssTypes.declaration) {
-              if (declaration.property.startsWith("--")) {
+              if (declaration.property.slice(0, 2) == "--") {
                 const scopedName = variableReplaceMap.get(declaration.property);
                 if (scopedName) {
                   declaration.property = scopedName;
                 }
               } else if (declaration.value.includes("var(")) {
-                // TODO: optimize this
-                const reg = /var\((--[\w-]+)(?:.)*\)/g;
-
-                const getCaptureGroups = (
-                  str: string,
-                  groups: Set<string> = new Set()
-                ): Set<string> => {
-                  const match = reg.exec(str);
-                  if (match && match[1]) {
-                    groups.add(match[1]);
-                    return getCaptureGroups(str, groups);
-                  }
-                  return groups;
+                type FoundVar = {
+                  name: string;
+                  start: number;
+                  end: number;
                 };
 
-                const usedVariables = getCaptureGroups(declaration.value);
+                const foundVars: Array<FoundVar> = [];
+                let nextIndex = 0;
 
-                for (const variable of usedVariables) {
-                  const scopedName = variableReplaceMap.get(variable);
+                while (
+                  (nextIndex = declaration.value.indexOf(
+                    "var(--",
+                    nextIndex
+                  )) !== -1
+                ) {
+                  const variable: FoundVar = {
+                    name: "--",
+                    start: nextIndex + 4,
+                    end: nextIndex + 4,
+                  };
+
+                  let j = nextIndex + 6;
+
+                  for (
+                    ;
+                    declaration.value[j] !== " " &&
+                    declaration.value[j] !== "," &&
+                    declaration.value[j] !== ")";
+                    j++
+                  ) {
+                    variable.name += declaration.value[j];
+                  }
+
+                  variable.end = variable.start + variable.name.length;
+                  foundVars.push(variable);
+
+                  nextIndex += 6;
+                }
+
+                const resultChars: string[] = [];
+                let prevEnd = 0;
+                for (const variable of foundVars) {
+                  const scopedName = variableReplaceMap.get(variable.name);
                   if (scopedName) {
-                    declaration.value = declaration.value.replaceAll(
-                      `var(${variable}`,
-                      `var(${scopedName}`
+                    resultChars.push(
+                      declaration.value.slice(prevEnd, variable.start),
+                      scopedName
+                    );
+                  } else {
+                    resultChars.push(
+                      declaration.value.slice(prevEnd, variable.start),
+                      variable.name
                     );
                   }
+                  prevEnd = variable.end;
                 }
+                resultChars.push(declaration.value.slice(prevEnd));
+
+                let value = "";
+                let first = true;
+
+                for (let i = 0; i < resultChars.length; i++) {
+                  if (first) {
+                    first = false;
+                    value = resultChars[i]!;
+                  } else {
+                    value += resultChars[i]!;
+                  }
+                }
+
+                declaration.value = value;
               }
             }
           }
